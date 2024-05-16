@@ -1,0 +1,939 @@
+---
+title: "TBI Analysis"
+author: "Pratik Pathade"
+date: "2024-04-30"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+
+############## loading Raw File ###################################
+
+library(dplyr)
+library(Seurat)
+library(patchwork)
+library(Seurat)
+library(harmony)
+library(devtools)
+library(hdf5r)
+library(stringr)
+library(ggplot2)
+library(DESeq2)
+library(harmony)
+
+```
+
+
+```{r}
+
+
+#install_github("immunogenomics/harmony")
+# BiocManager::install("SingleR",dependencies=T,force=T)
+# library(SingleR)
+
+# For Merging of Control data 
+GSM6376803_ <- Read10X(data.dir = "Control GSM6376803/")
+GSM6376804_ <- Read10X(data.dir = "Control GSM6376804/")
+GSM6376805_ <- Read10X(data.dir = "Control GSM6376805/")
+GSM6376806_ <- Read10X(data.dir = "Control GSM6376806/")
+GSM6376807_ <- Read10X(data.dir = "Control GSM6376807/")
+
+GSM6376803 <- CreateSeuratObject(counts = GSM6376803_, project = "Control_1",min.cells = 3, min.features = 1000)
+GSM6376804 <- CreateSeuratObject(counts = GSM6376804_, project = "Control_2",min.cells = 3, min.features = 1000)
+GSM6376805 <- CreateSeuratObject(counts = GSM6376805_, project = "Control_3",min.cells = 3, min.features = 1000)
+GSM6376806 <- CreateSeuratObject(counts = GSM6376806_, project = "Control_4",min.cells = 3, min.features = 1000)
+GSM6376807 <- CreateSeuratObject(counts = GSM6376807_, project = "Control_5",min.cells = 3, min.features = 1000)
+
+dim(GSM6376805)
+dim(GSM6376803_)
+View(GSM6376803_@assays$RNA)
+
+###################### Merging Control Files #####################################
+merged_seurat <- merge(GSM6376803, y = c(GSM6376804, GSM6376805,GSM6376806,GSM6376807), add.cell.ids = c("1", "2", "3","4","5"), project = "Control")
+View(merged_seurat@meta.data)
+
+#saveRDS(merged_seurat,"Merged_Control_5.rds")
+
+
+################### For Merging of TBI data  ###############################
+
+GSM6376811_ <- Read10X(data.dir = "TBI GSM6376811/")
+GSM6376812_ <- Read10X(data.dir = "TBI GSM6376812/")
+GSM6376813_ <- Read10X(data.dir = "TBI GSM6376813/")
+GSM6376814_ <- Read10X(data.dir = "TBI GSM6376814/")
+GSM6376815_ <- Read10X(data.dir = "TBI GSM6376815/")
+GSM6376816_ <- Read10X(data.dir = "TBI GSM6376816/")
+GSM6376817_ <- Read10X(data.dir = "TBI GSM6376817/")
+GSM6376818_ <- Read10X(data.dir = "TBI GSM6376818/")
+GSM6376819_ <- Read10X(data.dir = "TBI GSM6376819/")
+GSM6376820_ <- Read10X(data.dir = "TBI GSM6376820/")
+GSM6376821_ <- Read10X(data.dir = "TBI GSM6376821/")
+GSM6376822_ <- Read10X(data.dir = "TBI GSM6376822/")
+
+
+GSM6376811 <- CreateSeuratObject(counts = GSM6376811_, project = "TBI_1",min.cells = 3, min.features = 1000)
+GSM6376812 <- CreateSeuratObject(counts = GSM6376812_, project = "TBI_2",min.cells = 3, min.features = 1000)
+GSM6376813 <- CreateSeuratObject(counts = GSM6376813_, project = "TBI_3",min.cells = 3, min.features = 1000)
+GSM6376814 <- CreateSeuratObject(counts = GSM6376814_, project = "TBI_4",min.cells = 3, min.features = 1000)
+GSM6376815 <- CreateSeuratObject(counts = GSM6376815_, project = "TBI_5",min.cells = 3, min.features = 1000)
+GSM6376816 <- CreateSeuratObject(counts = GSM6376816_, project = "TBI_6",min.cells = 3, min.features = 1000)
+GSM6376817 <- CreateSeuratObject(counts = GSM6376817_, project = "TBI_7",min.cells = 3, min.features = 1000)
+GSM6376818 <- CreateSeuratObject(counts = GSM6376818_, project = "TBI_8",min.cells = 3, min.features = 1000)
+GSM6376819 <- CreateSeuratObject(counts = GSM6376819_, project = "TBI_9",min.cells = 3, min.features = 1000)
+GSM6376820 <- CreateSeuratObject(counts = GSM6376820_, project = "TBI_10",min.cells = 3, min.features = 1000)
+GSM6376821 <- CreateSeuratObject(counts = GSM6376821_, project = "TBI_11",min.cells = 3, min.features = 1000)
+GSM6376822 <- CreateSeuratObject(counts = GSM6376822_, project = "TBI_12",min.cells = 3, min.features = 1000)
+
+
+merged_seurat_TBI <- merge(GSM6376811, y = c(GSM6376812, GSM6376813,GSM6376814,GSM6376815,GSM6376816,GSM6376817,GSM6376818,GSM6376819,GSM6376820,GSM6376821,GSM6376822), add.cell.ids = c("1", "2", "3","4","5","6","7","8","9","10","11","12"), project = "TBI")
+View(merged_seurat_TBI@meta.data)
+
+#saveRDS(merged_seurat_TBI,"Merged_TBI_12.rds")
+
+
+```
+
+
+
+```{r,}
+# 
+# 
+# ############################# Skip if loading  the  RDS Files ##################
+# 
+# TBI_=read.csv("Merged File/Merged_TBI_12.csv")
+# TBI__=TBI_
+# colnames(TBI__)[colnames(TBI_) == "X"] <- ""
+# rownames(TBI__)=TBI__[,1]
+# TBI__=TBI__[,-1]
+# View(TBI__)
+# 
+# 
+# 
+# 
+# Control__=read.csv("Merged File/Merged_Control_5.csv")
+# Control_=Control__
+# colnames(Control_)[colnames(Control_) == "X"] <- ""
+# rownames(Control_)=Control_[,1]
+# Control_=Control_[,-1]
+# #View(Control_)
+# 
+# ############# TBI
+# 
+# seurat_obj_TBI <- CreateSeuratObject(counts = TBI__, project = "TBI")
+# seurat_obj_TBI@meta.data
+# seurat_obj_TBI@assays$RNA@counts
+# dim(seurat_obj_TBI)
+# 
+# #seurat_obj_TBI$meta.data <- barcodes  # Assuming Cell_annotation contains cell metadata
+# #seurat_obj@assays$RNA@varMetadata <- as.data.frame(Gene_names)  # Assuming Gene_names contains gene metadata
+# #seurat_obj_TBI@assays$RNA@var.features=as.data.frame(features)
+# colnames(seurat_obj_TBI)
+# Seurat_TBI_=seurat_obj_TBI@assays$RNA@counts
+# 
+# 
+# ########################### Control
+# 
+# 
+# seurat_obj <- CreateSeuratObject(counts = Control_, project = "Control")
+# dim(seurat_obj)
+# #seurat_obj$meta.data <- barcodes  # Assuming Cell_annotation contains cell metadata
+# #seurat_obj@assays$RNA@varMetadata <- as.data.frame(Gene_names)  # Assuming Gene_names contains gene metadata
+# #seurat_obj@assays$RNA@var.features=as.data.frame(features)
+# colnames(seurat_obj)
+# a=seurat_obj@assays$RNA@counts
+# 
+# seurat_obj@meta.data
+# seurat_obj@meta.data
+
+
+```
+
+```{r}
+
+######################### Load This Combined Files ############################# 
+
+# ############# TBI ##############################
+# merged_seurat_TBI=readRDS("Merged_TBI_12.rds")
+# 
+# ############# Control ##############################
+# seurat_obj=readRDS("Merged_Control_5.rds")
+# 
+# 
+
+
+
+```
+
+
+```{r}
+
+############################ Merge all data ####################################
+
+
+alldata <- merge(merged_seurat_TBI, merged_seurat, add.cell.ids=c("TBI","Control"),project = "TBI_Dataset")
+
+alldata@meta.data
+View(alldata@meta.data)
+alldata@meta.data$group <- NA 
+alldata@meta.data$group[which(str_detect(row.names(alldata@meta.data), "^TBI"))] <- "TBI"
+alldata@meta.data$group[which(str_detect(row.names(alldata@meta.data), "^Control_"))] <- "Control"
+alldata <- PercentageFeatureSet(alldata, "^MT-", col.name = "mitochondrial")
+alldata <- PercentageFeatureSet(alldata, "^RP[SL]", col.name = "ribosomal")
+alldata@meta.data
+
+alldata@meta.data <- alldata@meta.data %>%
+  dplyr::rename(nUMI = nCount_RNA,nGene = nFeature_RNA)
+
+
+
+
+alldata
+str(alldata)
+
+```
+
+```{r,warning=FALSE,message=FALSE,fig.align = "center",fig.cap=" barplot for the number of Genes", echo=FALSE,fig.height=5, fig.width=8,results='hide'}
+
+###############################  barplot for the number of Genes ###############
+alldata@meta.data %>% 
+  ggplot(aes(x=group, fill=group)) + 
+  geom_bar() +
+  theme_classic() +
+  theme(text = element_text(size=15),axis.title.x = element_blank()) +
+  theme(plot.title = element_text(hjust=0.5, face="bold"))+
+  labs(title = "Number of cells per group",
+       subtitle = "Determined by number of unique cellular barcodes detected")+
+  theme(plot.title = element_text(color = "steelblue4", size = 13, face = "bold"),
+        plot.subtitle = element_text(color = "orange", size = 9),
+        plot.caption = element_text(color = "green", size = 6, face = "italic")) + 
+  theme(plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5), plot.caption = element_text(hjust = 1))
+
+(alldata@meta.data$group)
+```
+
+
+```{r}
+
+################## Finding  Number of Cells In Each group ######################
+
+Counting_cells_group=SplitObject(alldata, split.by = "group")
+TBI_Counting_cells_group=Counting_cells_group$TBI
+dim(TBI_Counting_cells_group)
+
+
+Control_Counting_cells_group=Counting_cells_group$Control
+dim(Control_Counting_cells_group)
+
+```
+
+
+```{r}
+
+#################  Histogram of the number of UMIs/transcripts per cell ########
+
+alldata@meta.data %>% 
+  ggplot(aes(color=group, x=nUMI, fill= group)) + 
+  geom_density(alpha = 0.2) + 
+  scale_x_log10() + 
+  theme_classic() +
+  ylab("log10 Cell density") +
+  theme(text = element_text(size=12), axis.text.x = element_text(angle = 45, vjust = 1, hjust=1)) +
+  theme(plot.title = element_text(hjust=0.5, face="bold")) +
+  labs(title = "Number of UMIs/transcripts per cell")+
+  theme(plot.title = element_text(color = "steelblue4", size = 13, face = "bold")) + 
+  theme(plot.title = element_text(hjust = 0.5))
+
+
+
+
+```
+
+
+
+```{r}
+
+#################  Histogram of the number of genes per cell  ##################
+
+
+alldata@meta.data %>% 
+  ggplot(aes(color=group, x=nGene, fill= group)) + 
+  geom_density(alpha = 0.2) + 
+  scale_x_log10() + 
+  theme_classic() +
+  ylab("log10 Cell density") +
+  theme(text = element_text(size=15), axis.text.x = element_text(angle = 45, vjust = 1, hjust=1)) +
+  theme(plot.title = element_text(hjust=0.5, face="bold")) +
+  labs(title = "Number of genes detected per cell") +
+  theme(plot.title = element_text(color = "steelblue4", size = 13, face = "bold")) + 
+  theme(plot.title = element_text(hjust = 0.5))
+
+
+```
+
+
+```{r}
+
+######################### Distribution of genes detected per cell ##############
+
+alldata@meta.data %>% 
+  ggplot(aes(x=group, y=log10(nGene), fill=group)) + 
+  geom_boxplot() + 
+  theme_classic() +
+  theme(text = element_text(size=15), axis.title.x = element_blank()) +
+  theme(plot.title = element_text(hjust=0.5, face="bold")) +
+  labs(title = "Number of genes detected per cell") +
+  theme(plot.title = element_text(color = "steelblue4", size = 13, face = "bold"),
+        plot.subtitle = element_text(color = "orange", size = 9),
+        plot.caption = element_text(color = "green", size = 6, face = "italic")) + 
+  theme(plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5))
+
+
+
+
+```
+
+```{r}
+
+######### Correlation between genes detected and number of UMIs/transcripts #####
+ 
+alldata@meta.data %>% 
+  ggplot(aes(x=nUMI, y=nGene)) + 
+  geom_point(color="grey") + 
+  stat_smooth(method=lm) +
+  scale_x_log10() + 
+  scale_y_log10() + 
+  theme_classic() +
+  facet_wrap(~group) +
+  theme(text = element_text(size=12), axis.text.x = element_text(angle= 45, vjust = 1, hjust=1)) +
+  theme(plot.title = element_text(hjust=0.5, face="bold")) +
+  labs(title = "Correlation between genes detected and number of UMIs/transcripts") +
+  theme(plot.title = element_text(color = "steelblue4", size = 13, face = "bold")) + 
+  theme(plot.title = element_text(hjust = 0.5))
+
+
+
+```
+
+
+```{r}
+
+#########   Visualizing the nGENES and nUMI's #################################
+
+
+
+cowplot::plot_grid(ncol = 2,FeatureScatter(alldata, "nUMI"  , "nGene", group.by = "orig.ident", pt.size = .5),
+                   FeatureScatter(alldata, "ribosomal", "nGene", group.by = "orig.ident", pt.size = .5))
+
+feats <- c("nGene","nUMI","mitochondrial","ribosomal")
+VlnPlot(alldata, group.by= "group", features = feats, pt.size = 0.1,ncol = 4) + NoLegend()
+
+cap<-"Correlation between various characteristics"
+cap <- c(cap,"Violin plot visualizes cell distribution based on various characteristics" )
+
+
+VlnPlot(alldata, features = c("nUMI", "nGene", "mitochondrial"), ncol = 3)
+#View(alldata@meta.data)
+
+
+```
+
+
+```{r}
+
+###### After Filtering Data On the basis of Mitochondrial genes ################
+data.filt <- subset(alldata, subset = mitochondrial < 25)
+
+feats <- c("nGene","nUMI","mitochondrial")
+
+VlnPlot(data.filt, group.by= "group", features = feats, pt.size = 0.1,ncol = 4) + NoLegend()
+VlnPlot(data.filt, features = c("nUMI", "nGene", "mitochondrial"), ncol = 3)
+
+```
+```{r}
+
+Filtered_Cells=SplitObject(data.filt,split.by = "group")
+
+Filtered_TBI_Cells =Filtered_Cells$TBI
+dim(Filtered_TBI_Cells)
+Filtered_Control_Cells=Filtered_Cells$Control
+dim(Filtered_Control_Cells)
+```
+
+
+
+```{r}
+#########################  Bargraph shows number of cells in each group (Filtered)  ##############
+data.filt@meta.data %>% 
+  ggplot(aes(x=group, fill=group)) + 
+  geom_bar() +
+  theme_classic() +
+  theme(text = element_text(size=15),axis.title.x = element_blank()) +
+  theme(plot.title = element_text(hjust=0.5, face="bold"))+
+  labs(title = "Number of cells per group",
+       subtitle = "Determined by number of unique cellular barcodes detected")+
+  theme(plot.title = element_text(color = "steelblue4", size = 13, face = "bold"),
+        plot.subtitle = element_text(color = "orange", size = 9),
+        plot.caption = element_text(color = "green", size = 6, face = "italic")) + 
+  theme(plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5), plot.caption = element_text(hjust = 1))
+
+
+
+```
+
+
+
+
+```{r}
+
+
+######### Correlation between genes detected and number of UMIs/transcripts #####
+ 
+data.filt@meta.data %>% 
+  ggplot(aes(x=nUMI, y=nGene)) + 
+  geom_point(color="grey") + 
+  stat_smooth(method=lm) +
+  scale_x_log10() + 
+  scale_y_log10() + 
+  theme_classic() +
+  facet_wrap(~group) +
+  theme(text = element_text(size=12), axis.text.x = element_text(angle= 45, vjust = 1, hjust=1)) +
+  theme(plot.title = element_text(hjust=0.5, face="bold")) +
+  labs(title = "Correlation between genes detected and number of UMIs/transcripts") +
+  theme(plot.title = element_text(color = "steelblue4", size = 13, face = "bold")) + 
+  theme(plot.title = element_text(hjust = 0.5))
+
+
+
+
+```
+
+
+
+
+```{r}
+#################### Splitting Seurat Objcet ###################################
+#################### Normalizing The Data ######################################
+##################### Finding HIghly Variavle genes ############################
+seurat_list <- SplitObject(data.filt, split.by = "group")
+for (i in 1:length(seurat_list)) {
+  seurat_list[[i]] <- NormalizeData(seurat_list[[i]],
+                                    verbose = FALSE)
+  seurat_list[[i]] <- FindVariableFeatures(seurat_list[[i]], 
+                                           selection.method = "vst", 
+                                           nfeatures = 1000,
+                                           verbose = FALSE)
+} 
+
+
+#################  Highly variable Genes in TBI ################################
+
+top15_TBI <- head(x = VariableFeatures(object = seurat_list$TBI), n = 15)
+unlabelled <- VariableFeaturePlot(object = seurat_list$TBI)
+
+LabelPoints(plot = unlabelled,
+            points = top15_TBI,
+            repel = TRUE) + labs(title = "Highly variable genes (TBI)") +
+  theme(plot.title = element_text(color = "steelblue4", size = 13, face = "bold")) + 
+  theme(plot.title = element_text(hjust = 0.5))
+
+
+
+```
+
+
+```{r}
+
+#########################  Highly variable genes in Control #############
+top15_Control <- head(x = VariableFeatures(object = seurat_list$Control), n = 15)
+unlabelled <- VariableFeaturePlot(object = seurat_list$Control)
+
+LabelPoints(plot = unlabelled,
+            points = top15_Control,
+            repel = TRUE) + labs(title = "Highly variable genes (Control)") +
+  theme(plot.title = element_text(color = "steelblue4", size = 13, face = "bold"))
+
+
+
+
+```
+
+
+```{r}
+
+combined_seurat_ <- merge(seurat_list$TBI, seurat_list$Control,project = "TBI_Dataset")
+
+all_genes <- rownames(x = combined_seurat_)
+# anchors <- FindIntegrationAnchors(object.list = seurat_list,dim=1:20)
+# combined <- IntegrateData(anchorset = anchors,dim=1:20)
+
+combined <- NormalizeData(combined_seurat_) 
+combined <- FindVariableFeatures(combined) 
+# combined <- ScaleData(combined) 
+# combined <- RunPCA(combined, verbose = FALSE)
+# DefaultAssay(object = combined) <- "integrated"
+combined <- ScaleData(combined, features  = all_genes)
+combined <- RunPCA(combined,verbose = FALSE)
+
+DimPlot(combined, reduction = "pca", group.by= "group", split.by = "group", label = FALSE, label.size=0) +
+  labs(title = "PCA") +
+  theme(plot.title = element_text(color = "steelblue4", size = 10, face = "bold"),
+        plot.subtitle = element_text(color = "orange", size = 10)) + 
+  theme(plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5))
+
+View(combined@meta.data)
+
+
+# combined@
+# NML_HAR
+# data.filt@
+# NML_HAR <- NormalizeData(data.filt) 
+# NML_HAR <- FindVariableFeatures(NML_HAR) 
+# NML_HAR <- ScaleData(NML_HAR) 
+# NML_HAR <- RunPCA(data.filt, verbose = FALSE)
+# NML_HAR <- RunHarmony(NML_HAR, group.by.vars = "orig.ident")
+# NML_HAR <- RunUMAP(NML_HAR, reduction = "harmony", dims = 1:15)
+# NML_HAR <- FindNeighbors(NML_HAR, reduction = "harmony", dims = 1:15) 
+# NML_HAR <- FindClusters(NML_HAR)
+# DimPlot(NML_HAR, group.by = c("orig.ident", "seurat_clusters"), ncol = 2)
+
+```
+
+
+
+```{r}
+pct_combined <- combined[["pca"]]@stdev / sum(combined[["pca"]]@stdev) * 100
+cumu_combined <- cumsum(pct_combined)
+co1_combined <- which(cumu_combined > 90 & pct_combined < 5)[1]
+co2_combined <- sort(which((pct_combined[1:length(pct_combined) - 1] - pct_combined[2:length(pct_combined)]) > 0.1), decreasing = T)[1] + 1
+
+pcs_combined <- min(co1_combined, co2_combined)
+plot_df_combined <- data.frame(pct_combined = pct_combined, cumu_combined = cumu_combined,rank_combined = 1:length(pct_combined))
+ggplot(plot_df_combined, aes(cumu_combined, pct_combined, label = rank_combined, color = rank_combined <= pcs_combined)) + 
+  geom_text(size=3) + 
+  theme_bw() + labs(title = "Choosing PCs", x ="Cumulative percentage of standard deviation for each PC", y = "Percent of variation associated with each PC") +
+  theme(plot.title = element_text(color = "steelblue4", size = 13, face = "bold",hjust = 0.5))+
+  geom_label(label="PCs covering majority of the variation in the data: \n point where change of % variation between \n the consecutive PCs is more than 0.1%", 
+             x=50, y=3.5, label.padding = unit(0.15, "lines"), # Rectangle size around label
+             label.size = 0.15, color = "black", fill="#69b3a2")+
+  theme(legend.position = "bottom")
+
+
+```
+
+
+
+
+```{r, width=10 , height=13}
+
+
+DimHeatmap(combined, dims = 1:5, cells = 500, balanced = TRUE)
+
+
+
+
+```
+
+
+```{r}
+
+####################### Elbow plot ###########################################
+ElbowPlot(combined)
+
+```
+
+
+
+
+```{r}
+############################## Running PCA #####################################
+
+
+```
+
+```{r, width=10 , height=13}
+
+
+DimHeatmap(combined, dims = 1:5, cells = 500, balanced = TRUE)
+
+
+
+```
+
+
+```{r}
+#################### Harmoney Package ##########################################
+################### Currenly Working on it #####################################
+
+#install.packages("harmony")
+
+combined@meta.data
+combined <- RunHarmony(combined, group.by.vars = "orig.ident")
+combined <- RunUMAP(combined, reduction = "harmony", dims = 1:20)
+
+
+
+combined <- FindNeighbors(combined, reduction = "harmony", dims = 1:20) 
+combined <- FindClusters(combined, resolution = seq(0.05,2,0.05))
+
+sapply(grep("res",colnames(combined@meta.data),value = TRUE), function(x) length(unique(combined@meta.data[,x])))
+
+#############################
+Idents(object = combined) <- "RNA_snn_res.0.25"
+
+DimPlot(combined,split.by = "group",
+        reduction = "umap",
+        label = TRUE,
+        label.size = 6, pt.size = 1) + labs(title = "Uniform Manifold Approximation and Projection (UMAP)") +
+  theme(plot.title = element_text(color = "steelblue4", size = 13, face = "bold")) + 
+  theme(plot.title = element_text(hjust = 0.5))
+
+
+
+```
+
+
+
+
+
+
+```{r}
+
+
+Plot1 <- DimPlot(combined, group.by = "group")
+
+Plot1
+
+
+
+```
+
+
+`
+
+```{r}
+################################## V Clusters ############################
+#Idents(object = combined) <- "integrated_snn_res.0.15"
+
+#combined <- RunUMAP(combined,reduction = "pca",dims = 1:20)
+
+DimPlot(combined,
+        reduction = "umap",
+        label = TRUE,
+        label.size = 6, pt.size = 1) + labs(title = "Uniform Manifold Approximation and Projection (UMAP)") +
+  theme(plot.title = element_text(color = "steelblue4", size = 13, face = "bold")) + 
+  theme(plot.title = element_text(hjust = 0.5))
+
+DimPlot(combined,split.by = "group",
+        reduction = "umap",
+        label = TRUE,
+        label.size = 6, pt.size = 1) + labs(title = "Uniform Manifold Approximation and Projection (UMAP)") +
+  theme(plot.title = element_text(color = "steelblue4", size = 13, face = "bold")) + 
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+
+
+
+```{r}
+########################### Finding markers of  Clusters ###################
+
+library(dplyr)
+DefaultAssay(combined) <- "RNA"
+all_genes <- rownames(x = combined)
+combined <- ScaleData(object = combined, features = all_genes)
+######################## Finding markers for all Clusters ######################
+combined_markers <- FindAllMarkers(object = combined, only.pos = TRUE)
+combined_markers
+write.table(combined_markers,"new_Main_Markers_All_Clusters.txt", sep="\t",quote = FALSE, col.names = NA)
+
+
+
+top10 <- combined_markers %>% group_by(cluster) %>% top_n(n = 10, wt = avg_log2FC)
+top10
+write.table(top10,"New_top10_markers_of_all_clusters.txt", sep="\t",quote = FALSE, col.names = NA)
+
+
+DoHeatmap(combined, features = top10$gene,label = TRUE,group.bar = TRUE,size = 5) +
+  theme(text = element_text(size = 2),legend.position = "right",plot.margin = margin(2,2,2,2, "cm"),
+        legend.text = element_text(size=10),legend.title = element_text(size=10),axis.text=element_text(size=4))
+
+aabb=combined_markers
+aabb %>%
+    group_by(cluster) %>%
+    dplyr::filter(avg_log2FC > 1) %>%
+    slice_head(n = 10) %>%
+    ungroup() -> top10
+DoHeatmap(combined, features = top10$gene) + NoLegend()
+
+
+dev.off()
+
+
+
+```
+
+
+
+
+
+```{r}
+# devtools::install_github('dviraran/SingleR')
+# BiocManager::install("SingleR",dependencies = T,force=T)
+# library(SingleR)
+# 
+# data("refdata_celltypes")
+# 
+# # Perform cell type annotation
+# annotations <- SingleR(test = sc_data, ref = refdata_celltypes, labels = refdata_celltypes$labels)
+# 
+# # View the annotations
+# 
+# head(annotations)
+
+
+```
+
+
+```{r}
+
+
+############################ labbeling Clusters ################################
+
+
+celltypes <- c("5" = "Excitatory Neurons",
+  "0" = "Excitatory Neurons",
+  "6" = "Excitatory Neurons",
+  "2" = "Interneurons",
+  "4" = "Astrocytes",
+  "9" = "Interneurons",
+  "3" = "Interneurons",
+  "1" = "Oligodendrocytes",
+  "8" = "Microglia",
+  "7" = "OPC",
+  "14" = "Endothelial",
+  "13" = "Endothelial",
+  "10" = "Unspecified",
+  "11" = "Unspecified",
+  "12" = "Unspecified")
+
+combined <- RenameIdents(combined, celltypes)
+View(pbmc@meta.data)
+
+DimPlot(combined,split.by = "group",
+        reduction = "umap",
+        label = TRUE,
+        label.size = 6, pt.size = 1) + labs(title = "Uniform Manifold Approximation and Projection (UMAP)") +
+  theme(plot.title = element_text(color = "steelblue4", size = 13, face = "bold")) + 
+  theme(plot.title = element_text(hjust = 0.5))
+
+saveRDS(combined,file = "New_TBI_ScRNA.rds")
+
+```
+```{r}
+library(patchwork)
+combined= readRDS("New_TBI_ScRNA.rds")
+TBI_RDS=combined
+
+
+as=SplitObject(TBI_RDS, split.by = "group")
+as$Control
+
+####################### Fot TBI FIndall Markers ################################
+TBI_=as$TBI
+View(TBI_@meta.data)
+TBI_$Cluster_Groups <- paste(Idents(TBI_), TBI_$group, sep = "_")
+TBI_RDS$celltype <- Idents(TBI_RDS)
+Idents(TBI_) <- "Cluster_Groups"
+combined_markers <- FindAllMarkers(object = TBI_, only.pos = TRUE, min.pct = 0.25, logfc.threshold = 0.25, min.cells.group = 3)
+top10 <- combined_markers %>% group_by(cluster) %>% top_n(n = 10, wt = avg_log2FC)
+top10
+write.csv(top10,"TBI Markers of all Clusters.csv")
+
+
+####################### Fot Control Findall Markers ############################
+
+Control_=as$Control
+Control_$Cluster_Groups <- paste(Idents(Control_), Control_$group, sep = "_")
+Control_$celltype <- Idents(Control_)
+Idents(Control_) <- "Cluster_Groups"
+Control_Markers <- FindAllMarkers(object = Control_, only.pos = TRUE, min.pct = 0.25, logfc.threshold = 0.25, min.cells.group = 3)
+top10_ <- Control_Markers %>% group_by(cluster) %>% top_n(n = 10, wt = avg_log2FC)
+top10_
+write.csv(top10_,"Control Markers of all Clusters.csv")
+
+
+
+```
+
+
+
+
+```{r}
+##################### Finding DEG between the Clusters of two groups ###########
+
+
+
+TBI_RDS$Cluster_Groups <- paste(Idents(TBI_RDS), TBI_RDS$group, sep = "_")
+
+TBI_RDS$celltype <- Idents(TBI_RDS)
+Idents(TBI_RDS) <- "Cluster_Groups"
+
+#cluster_counts <- table(TBI_RDS@meta.data$integrated_snn_res.0.05)
+
+
+TBI_RDS[["RNA"]]@counts <- as.matrix(TBI_RDS[["RNA"]]@counts)+1
+
+
+################################ Cluster 0  ####################################
+Excitatory_Neurons <- FindMarkers(TBI_RDS, ident.1 = "Excitatory Neurons_TBI", ident.2 = "Excitatory Neurons_Control", verbose = FALSE)
+top_markers <- head(Excitatory_Neurons, 10)
+write.csv(Excitatory_Neurons,"Excitatory Neurons.csv")
+Excitatory_Neurons_sorted_markers <- Excitatory_Neurons[order(Excitatory_Neurons$avg_log2FC, decreasing = TRUE), ]
+
+
+############################# Cluster 1 ########################################
+
+Interneurons <- FindMarkers(TBI_RDS, ident.1 = "Interneurons_TBI", ident.2 = "Interneurons_Control", verbose = FALSE)
+write.csv(Interneurons,"Interneurons.csv")
+Interneurons_sorted_markers <- Interneurons[order(Interneurons$avg_log2FC, decreasing = TRUE), ]
+# Select the top markers with high logFC
+Interneurons_top_markers_high_logFC <- head(Interneurons_sorted_markers, 10)
+
+
+############################# Cluster 2 ########################################
+
+Astrocytes <- FindMarkers(TBI_RDS, ident.1 = "Astrocytes_TBI", ident.2 = "Astrocytes_Control", verbose = FALSE)
+write.csv(Astrocytes,"Astrocytes_TBI.csv")
+Astrocytes_sorted_markers <- Astrocytes[order(Astrocytes$avg_log2FC, decreasing = TRUE), ]
+# Select the top markers with high logFC
+Astrocytes_top_markers_high_logFC <- head(Astrocytes_sorted_markers, 10)
+
+
+
+############################# Cluster 3 ########################################
+
+Oligodendrocytes <- FindMarkers(TBI_RDS, ident.1 = "Oligodendrocytes_TBI", ident.2 = "Oligodendrocytes_Control", verbose = FALSE)
+write.csv(Oligodendrocytes,"Cluster_Oligodendrocytes.csv")
+Oligodendrocytes_sorted_markers <- Oligodendrocytes[order(Oligodendrocytes$avg_log2FC, decreasing = TRUE), ]
+# Select the top markers with high logFC
+Oligodendrocytes_top_markers_high_logFC <- head(Oligodendrocytes_sorted_markers, 10)
+
+
+############################# Cluster 4 ########################################
+
+Microglia <- FindMarkers(TBI_RDS, ident.1 = "Microglia_TBI", ident.2 = "Microglia_Control",verbose = FALSE)
+write.csv(Microglia,"Microglia.csv")
+Microglia_sorted_markers <- Microglia[order(Microglia$avg_log2FC, decreasing = TRUE), ]
+# Select the top markers with high logFC
+Microglia_top_markers_high_logFC <- head(Microglia_sorted_markers, 10)
+
+
+
+############################# Cluster 5 ########################################
+
+OPC <- FindMarkers(TBI_RDS, ident.1 = "OPC_TBI", ident.2 = "OPC_Control", verbose = FALSE)
+
+write.csv(OPC,"OPC.csv")
+OPC_sorted_markers <- OPC[order(OPC$avg_log2FC, decreasing = TRUE), ]
+# Select the top markers with high logFC
+OPC_top_markers_high_logFC <- head(OPC_sorted_markers, 10)
+VlnPlot(TBI_RDS, features = "SPP1", idents = c("5_TBI", "5_Control"), group.by = "group") 
+
+
+
+############################# Cluster 6 ########################################
+
+Endothelial <- FindMarkers(TBI_RDS, ident.1 = "Endothelial_TBI", ident.2 = "Endothelial_Control", verbose = FALSE)
+
+write.csv(Endothelial,"Endothelial.csv")
+Endothelial_sorted_markers <- Endothelial[order(Endothelial$avg_log2FC, decreasing = TRUE), ]
+# Select the top markers with high logFC
+Endothelial_top_markers_high_logFC <- head(Endothelial_sorted_markers, 10)
+
+
+############################# Cluster 7 ########################################
+
+Unspecified <- FindMarkers(TBI_RDS, ident.1 = "Unspecified_TBI", ident.2 = "Unspecified_Control", verbose = FALSE)
+
+write.csv(Unspecified,"Unspecified.cvs")
+Unspecified_sorted_markers <- Unspecified[order(Unspecified$avg_log2FC, decreasing = TRUE), ]
+# Select the top markers with high logFC
+Unspecified_top_markers_high_logFC <- head(Unspecified_sorted_markers, 10)
+
+
+
+```
+
+
+
+```{r}
+
+############# For Visualizing CANONICAL MARKERS   #############################
+plot <- VlnPlot(object = combined, features = "RBFOX3")
+
+# # Modify the dimensions of the plot
+# plot + theme_minimal() + theme(
+#   plot.title = element_text(size = 10),
+#   axis.text.x = element_text(size = 8),
+#   axis.text.y = element_text(size = 8),
+#   axis.title.x = element_text(size = 10),
+#   axis.title.y = element_text(size = 10)
+# )
+
+pdf("canonical markers.pdf")
+VlnPlot(combined, features = "RBFOX3") 
+VlnPlot(combined, features = "GAD1") 
+VlnPlot(combined, features = "PLP1") 
+VlnPlot(combined, features = "VCAN") 
+VlnPlot(combined, features = "GFAP") 
+VlnPlot(combined, features = "FYB1")
+
+dev.off()
+
+
+
+
+######################## FEATUREPLOT ###########################################
+
+FeaturePlot(combined, features = c("RBFOX3", "GAD1", "PLP1", "VCAN", "GFAP", "FYB1"))
+#FeaturePlot(combined, features = c("RBFOX3", "GAD1", "PLP1", "VCAN", "GFAP", "FYB1"), cols = "orange")
+
+
+# ######################## Cluster 0  ############################################
+# plots <- VlnPlot(TBI_RDS, features = c("FSTL4"), split.by = "group", group.by = "integrated_snn_res.0.05",
+#     pt.size = 0, combine = FALSE)
+# wrap_plots(plots = plots, ncol = 1)
+# 
+
+
+
+
+
+
+
+
+
+```
+
+
+
+```{r}
+#################### Visualizng Graphs #########################################
+
+
+```
+
+```{r}
+
+
+
+
+```
+
+
+
